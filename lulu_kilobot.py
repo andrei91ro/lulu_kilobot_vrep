@@ -20,7 +20,18 @@ def procOutputModule(colony):
     :returns: light [r, g, b] with values between 0-2
 
     """
-    pass
+    motion = vrep_bridge.Motion.stop # default motion
+    light = [0, 0, 0] # default color (off)
+
+    if ('m_S' in colony.agents['AG_motion'].obj):
+        motion = vrep_bridge.Motion.forward
+    elif ('m_L' in colony.agents['AG_motion'].obj):
+        motion = vrep_bridge.Motion.left
+    elif ('m_R' in colony.agents['AG_motion'].obj):
+        motion = vrep_bridge.Motion.right
+    
+    return motion, light
+#end procOutputModule
 
 ##########################################################################
 #   MAIN
