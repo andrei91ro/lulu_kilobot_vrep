@@ -49,7 +49,7 @@ formatter = colorlog.ColoredFormatter(
         secondary_log_colors={},
         style='%'
 )
-colorlog.basicConfig(level = logging.DEBUG)
+colorlog.basicConfig(level = logging.INFO)
 stream = colorlog.root.handlers[0]
 stream.setFormatter(formatter);
 
@@ -59,6 +59,7 @@ colony = sim.readInputFile("input.txt")
 bridge = vrep_bridge.VrepBridge()
 
 while (True):
+    print("\n")
     raw_state = bridge.getState()
     procInputModule(raw_state, colony)
     
