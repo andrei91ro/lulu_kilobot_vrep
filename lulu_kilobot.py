@@ -4,35 +4,40 @@ from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
 
-def procInputModule(raw_state, colony):
-    """Process raw_state info received from sensors and populate the input module agents with significant objects
+class Kilobot():
 
-    :raw_state: structured dictionary obtained from vrep_bridge.getState()
-    :colony: Pcolony
-    """
-    pass
-# end procInputModule()
+    """Class used to store the state of a Kilobot robot for use in a controller that used Pcolonies."""
 
-def procOutputModule(colony):
-    """Process the objects present in the output module agents and transform them into commands that can be sent to the kilobot through setState()
+    def __init__(self, pcolony):
+        self.colony = pcolony # reference to the Pcolony used to control this robot
+        self.raw_input_state = {} # dictionary of raw sensor values
+        self.output_state = {
+                "motion" : vrep_bridge.Motion.stop, # motion (vrep_bridge.Motion) motion type
+                "rgb_led" : [0, 0, 0] # light [r, g, b] with values between 0-2
+                } # dictionary of output states
+    # end __init__()
 
-    :colony: Pcolony
-    :returns: motion (vrep_bridge.Motion) motion type
-    :returns: light [r, g, b] with values between 0-2
+    def procInputModule(self):
+        """Process raw_state info received from sensors and populate the input module agents with significant objects"""
+        pass
+    # end procInputModule()
 
-    """
-    motion = vrep_bridge.Motion.stop # default motion
-    light = [0, 0, 0] # default color (off)
+    def procOutputModule(self):
+        """Process the objects present in the output module agents and transform them into commands that can be sent to the kilobot through vrep_bridge.setState()"""
+        self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
+        self.output_state["rgb_led"] = [0, 0, 0] # default color (off)
 
-    if ('m_S' in colony.agents['AG_motion'].obj):
-        motion = vrep_bridge.Motion.forward
-    elif ('m_L' in colony.agents['AG_motion'].obj):
-        motion = vrep_bridge.Motion.left
-    elif ('m_R' in colony.agents['AG_motion'].obj):
-        motion = vrep_bridge.Motion.right
-    
-    return motion, light
-#end procOutputModule
+        if ('m_S' in colony.agents['AG_motion'].obj):
+            self.output_state["motion"] = vrep_bridge.Motion.forward
+        elif ('m_L' in colony.agents['AG_motion'].obj):
+            self.output_state["motion"] = vrep_bridge.Motion.left
+        elif ('m_R' in colony.agents['AG_motion'].obj):
+            self.output_state["motion"] = vrep_bridge.Motion.right
+
+    #end procOutputModule()
+
+# end class Kilobot
+
 
 ##########################################################################
 #   MAIN
@@ -67,10 +72,12 @@ colony = sim.readInputFile(sys.argv[1])
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
+robot = Kilobot(colony)
+
 while (True):
     print("\n")
-    raw_state = bridge.getState()
-    procInputModule(raw_state, colony)
+    robot.raw_input_state = bridge.getState()
+    robot.procInputModule()
     
     sim_result = colony.runSimulationStep()
     # if the simmulation result is other than step finished (i.e. no_more_exec or error)
@@ -79,5 +86,5 @@ while (True):
         logging.warn("Exiting loop")
         break
 
-    motion, light = procOutputModule(colony)
-    bridge.setState(motion, light)
+    robot.procOutputModule()
+    bridge.setState(robot.output_state["motion"], robot.output_state["rgb_led"])
