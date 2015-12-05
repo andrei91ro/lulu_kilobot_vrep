@@ -2,6 +2,7 @@ import logging
 import colorlog # colors log output
 from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
+import sys # for argv, stdout
 
 def procInputModule(raw_state, colony):
     """Process raw_state info received from sensors and populate the input module agents with significant objects
@@ -49,12 +50,20 @@ formatter = colorlog.ColoredFormatter(
         secondary_log_colors={},
         style='%'
 )
-colorlog.basicConfig(level = logging.INFO)
+if ('--debug' in sys.argv):
+    colorlog.basicConfig(stream = sys.stdout, level = logging.DEBUG)
+else:
+    colorlog.basicConfig(stream = sys.stdout, level = logging.INFO) # default log level
+
 stream = colorlog.root.handlers[0]
 stream.setFormatter(formatter);
 
+if (len(sys.argv) < 2):
+    logging.error("Expected input file path as parameter")
+    exit(1)
+
 # read Pcolony from file
-colony = sim.readInputFile("input.txt")
+colony = sim.readInputFile(sys.argv[1])
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
