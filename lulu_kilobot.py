@@ -3,6 +3,7 @@ import colorlog # colors log output
 from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
+from copy import deepcopy # for deepcopy (value not reference as = does for objects)
 
 class Kilobot():
 
@@ -28,11 +29,11 @@ class Kilobot():
         self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
         self.output_state["rgb_led"] = [0, 0, 0] # default color (off)
 
-        if ('m_S' in colony.agents['AG_motion'].obj):
+        if ('m_S' in self.colony.agents['AG_motion'].obj):
             self.output_state["motion"] = vrep_bridge.Motion.forward
-        elif ('m_L' in colony.agents['AG_motion'].obj):
+        elif ('m_L' in self.colony.agents['AG_motion'].obj):
             self.output_state["motion"] = vrep_bridge.Motion.left
-        elif ('m_R' in colony.agents['AG_motion'].obj):
+        elif ('m_R' in self.colony.agents['AG_motion'].obj):
             self.output_state["motion"] = vrep_bridge.Motion.right
 
     #end procOutputModule()
@@ -69,23 +70,58 @@ if (len(sys.argv) < 2):
     exit(1)
 
 # read Pcolony from file
-colony = sim.readInputFile(sys.argv[1])
+pObj = sim.readInputFile(sys.argv[1])
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
-robot = Kilobot(0, colony)
+if (type(pObj) == sim.Pcolony):
+    robot = Kilobot(0, pObj)
+else:
+    robots = [] # array of Kilobot objects
+    nrRobots = 3
+    aloc = {"pi_minus" : 3}
 
+    # the first robot uses the original Pcolony from the Pswarm
+    robots.append(Kilobot(0, pObj.colonies["pi_minus"]))
+
+    bridge.spawnRobots(nr = nrRobots - 1)
+    # create aditional copies of the Pcolony and assign then to each robot
+    for i in range(1, nrRobots):
+        logging.debug("Creating colony for robot %d" % i)
+        # add a new Pcolony name (with uid appended)
+        pObj.C.append("pi_minus_" + str(i))
+        logging.debug("pObj.C = %s" % pObj.C)
+        # create a value copy of the colony and store it under the new name
+        pObj.colonies[pObj.C[-1]] = deepcopy(pObj.colonies["pi_minus"])
+        # assign the copied Pcolony to the cloned robot
+        logging.debug("Robot %i got Pcolony %s" % (i, pObj.C[-1]) )
+        robots.append(Kilobot(i, pObj.colonies[pObj.C[-1]]))
+    #end for clones
+
+    # initialize the simResult dictionary
+    pObj.simResult = {colony_name: -1 for colony_name in pObj.C}
 while (True):
     print("\n")
-    robot.raw_input_state = bridge.getState(robot.uid)
-    robot.procInputModule()
     
-    sim_result = colony.runSimulationStep()
+    if (type(pObj) == sim.Pcolony):
+        robot.raw_input_state = bridge.getState(robot.uid)
+        robot.procInputModule()
+    else:
+        for robot in robots:
+            robot.raw_input_state = bridge.getState(robot.uid)
+            robot.procInputModule()
+
+    sim_result = pObj.runSimulationStep()
     # if the simmulation result is other than step finished (i.e. no_more_exec or error)
     if (sim_result != sim.SimStepResult.finished):
         # exit the loop
         logging.warn("Exiting loop")
         break
 
-    robot.procOutputModule()
-    bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
+    if (type(pObj) == sim.Pcolony):
+        robot.procOutputModule()
+        bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
+    else:
+        for robot in robots:
+            robot.procOutputModule()
+            bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
