@@ -8,7 +8,8 @@ class Kilobot():
 
     """Class used to store the state of a Kilobot robot for use in a controller that used Pcolonies."""
 
-    def __init__(self, pcolony):
+    def __init__(self, uid, pcolony):
+        self.uid = uid # the unique id of the robot 
         self.colony = pcolony # reference to the Pcolony used to control this robot
         self.raw_input_state = {} # dictionary of raw sensor values
         self.output_state = {
@@ -72,11 +73,11 @@ colony = sim.readInputFile(sys.argv[1])
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
-robot = Kilobot(colony)
+robot = Kilobot(0, colony)
 
 while (True):
     print("\n")
-    robot.raw_input_state = bridge.getState()
+    robot.raw_input_state = bridge.getState(robot.uid)
     robot.procInputModule()
     
     sim_result = colony.runSimulationStep()
@@ -87,4 +88,4 @@ while (True):
         break
 
     robot.procOutputModule()
-    bridge.setState(robot.output_state["motion"], robot.output_state["rgb_led"])
+    bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
