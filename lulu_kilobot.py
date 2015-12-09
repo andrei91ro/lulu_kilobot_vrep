@@ -210,33 +210,57 @@ if (len(sys.argv) < 2):
 
 # read Pcolony from file
 pObj = sim.readInputFile(sys.argv[1])
-config = readConfigFile("config.txt")
+# if the p object read from the input file is a Pswarm or XPcolony
+if (type(pObj) == sim.Pswarm or type(pObj) == sim.XPcolony):
+    if (len(sys.argv) < 3):
+        logging.error("Expected config file path as second parameter")
+        exit(1)
+
+    config = readConfigFile(sys.argv[2])
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
 if (type(pObj) == sim.Pcolony):
     robot = Kilobot(0, pObj)
 else:
-    robots = [] # array of Kilobot objects
-    nrRobots = 3
-    aloc = {"pi_minus" : 3}
+    # array of Kilobot objects
+    robots = [] 
+    # used to determine how many robots have been set up up so far with this colony name
+    # so that the first one gets the original colony and the others get a clone
+    config.nrConfiguredRobotsWithColony = {colonyName: 0 for colonyName in config.nrAsignedRobotsPerColony.keys()}
 
-    # the first robot uses the original Pcolony from the Pswarm
-    robots.append(Kilobot(0, pObj.colonies["pi_minus"]))
+    # spawn n-1 robots because 1 is already in the scene and is copied
+    bridge.spawnRobots(nr = config.nrRobots - 1)
 
-    bridge.spawnRobots(nr = nrRobots - 1)
     # create aditional copies of the Pcolony and assign then to each robot
-    for i in range(1, nrRobots):
-        logging.debug("Creating colony for robot %d" % i)
-        # add a new Pcolony name (with uid appended)
-        pObj.C.append("pi_minus_" + str(i))
-        logging.debug("pObj.C = %s" % pObj.C)
-        # create a value copy of the colony and store it under the new name
-        pObj.colonies[pObj.C[-1]] = deepcopy(pObj.colonies["pi_minus"])
-        # assign the copied Pcolony to the cloned robot
-        logging.debug("Robot %i got Pcolony %s" % (i, pObj.C[-1]) )
-        robots.append(Kilobot(i, pObj.colonies[pObj.C[-1]]))
+    for i in range(config.nrRobots):
+        # if i am the first robot that uses this Pcolony
+        if (config.nrConfiguredRobotsWithColony[config.robotColony[i]] == 0): 
+            logging.debug("Robot %d is the first to use %s Pcolony" % (i, config.robotColony[i]))
+            robots.append(Kilobot(i, pObj.colonies[config.robotColony[i]]))
+            # increase the nr of robots configured with this colony
+            config.nrConfiguredRobotsWithColony[config.robotColony[i]] += 1
+        else:
+            logging.debug("Copying Pcolony %s for robot %d" % (config.robotColony[i], i))
+            # add a new Pcolony name (with uid appended)
+            pObj.C.append(config.robotColony[i] + "_" + str(i))
+            logging.debug("pObj.C = %s" % pObj.C)
+            # create a value copy of the colony and store it under the new name
+            pObj.colonies[pObj.C[-1]] = deepcopy(pObj.colonies[config.robotColony[i]])
+            # assign the copied Pcolony to the cloned robot
+            logging.debug("Robot %i got Pcolony %s" % (i, pObj.C[-1]) )
+            robots.append(Kilobot(i, pObj.colonies[pObj.C[-1]]))
+            # increase the nr of robots configured with this colony
+            config.nrConfiguredRobotsWithColony[config.robotColony[i]] += 1
+            # change the generic colony name to the real allocated one
+            config.robotColony[i] = pObj.C[-1]
     #end for clones
+
+    print("\n Robot - Pcolony association table:")
+    print("robot_id    colony_name\n")
+    for i in range(config.nrRobots):
+        print("robot_%d    %s" % (i, config.robotColony[i]))
+    print("\n")
 
     # initialize the simResult dictionary
     pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
@@ -265,3 +289,8 @@ while (True):
         for robot in robots:
             robot.procOutputModule()
             bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
+# end while
+
+confirmRemoveRobots = input("Remove cloned robots from scene ? (y/n)")
+if (confirmRemoveRobots in ('y', 'Y')):
+    bridge.removeRobots()
