@@ -40,6 +40,145 @@ class Kilobot():
 
 # end class Kilobot
 
+class Config():
+
+    """Class used to store a parsed config file. This object is used to determine the behaviour of the application at runtime"""
+
+    def __init__(self):
+        self.C = [] # list of colony names
+        self.nrRobots = 0 # nr of simulated robots
+        self.nrRobotsPerColony = {} # dictionary (colony_name : nr_robots_that_will_use_this_colony}
+        self.robotColony = [] # list [robot_nr] = "name_of_colony_that_will_be_used"
+        self.robotName = [] # list of robot names (generated from their uid) ex ['robot_0', 'robot_1']
+        self.nrAsignedRobotsPerColony = {} # dictionary (colony_name : nr_robots_that_have_been_asigned_this_colony_so_far)
+# end class Config
+
+def process_config_tokens(tokens, parent, index):
+    """Process tokens recurently and return a Config object (or a subcomponent of the same type as parent)
+
+    :tokens: the list of tokens to be processed
+    :parent: an object that represents the type of the result
+    :index: the start index in the list of tokens
+    :returns: index - the current index in the token list (after finishing this component)
+    :returns: result - an object that is the result of processing the input parent and tokens
+    
+    """
+    logging.debug("process_tokens (parent_type = %s, index = %d)" % (type(parent), index))
+    result = parent # construct the result of specified type
+    prev_token = tokens[index]
+    
+    while (index < len(tokens)):
+        token = tokens[index]
+        logging.debug("token = '%s'" % token.value)
+        
+        if (type(parent) == Config):
+            if (token.type == 'ASSIGN'):
+                if (prev_token.value == "C"):
+                    logging.info("building list")
+                    index, result.C = process_config_tokens(tokens, result.C, index + 1)
+                    # no robots have been asigned to any colony
+                    result.nrAsignedRobotsPerColony = {colonyName: 0 for colonyName in result.C}
+                
+                elif (prev_token.value == 'nrRobots'):
+                    logging.info("setting value");
+                    index, result.nrRobots = process_config_tokens(tokens, result.nrRobots, index + 1)
+                    # generate a list of robot names that have the uid appended at the end
+                    result.robotName = ["robot_%d" % i for i in range(result.nrRobots)]
+                    # generate a list of empty colony name assignments for each robot number
+                    result.robotColony = [""] * result.nrRobots
+
+                # if the previous token is a robot name
+                elif (prev_token.value in result.robotName):
+                    logging.info("processing Robot_name = Colony_name")
+                    # obtain the robot number (uid to be more precise) from the robot name
+                    # ex 2 from robot_2
+                    robotNumber = result.robotName.index(prev_token.value)
+                    logging.debug("robot_name = %s, number = %d" % (prev_token.value, robotNumber))
+                    # we obtain the colony name (right hand side of the atribution)
+                    index, colonyName = process_config_tokens(tokens, "", index + 1)
+                    # if this is a known colony name
+                    if (colonyName in result.C):
+                        logging.debug("%s = %s" %(prev_token.value, colonyName))
+                        # asign the read colony name to the robot
+                        # so at the init phase the correct Pcolony object will be assigned to this robot
+                        result.robotColony[robotNumber] = colonyName
+                        result.nrAsignedRobotsPerColony[colonyName] += 1
+
+                # if the previous token is a colony name
+                elif (prev_token.value in result.C):
+                    logging.info("processing Colony_name = number_of_robots_on_colony")
+                    index, numberOfRobotsOnColony = process_config_tokens(tokens, int(), index + 1)
+                    # numberOfRobotsOnColony will be assigned the colony specified on the left hand side of the atribution
+                    result.nrRobotsPerColony[prev_token.value] = numberOfRobotsOnColony
+
+        elif (type(parent) == list):
+            logging.debug("processing as List")
+            if (token.type == 'ID'):
+                result.append(token.value);
+        
+        elif (type(parent) == str):
+            logging.debug("processing as Str")
+            if (token.type == 'ID'):
+                result = token.value;
+
+        elif (type(parent) == int):
+            logging.debug("processing as Int")
+            if (token.type == 'NUMBER'):
+                result = int(token.value);
+        
+        if (token.type == 'END'):
+            logging.info("finished this block with result = %s" % result)
+            return index, result;
+        
+        prev_token = token;
+        index += 1
+    # end while
+
+    return index, result
+#end process_config_tokens()
+
+def readConfigFile(filename, printTokens=False):
+    """Parses the given config file and produces a Config object
+
+    :filename: string path to the file that will be parsed
+    :returns: Config object
+
+    """
+    logging.info("Reading input file")
+
+    with open(filename) as file_in:
+        lines = "".join(file_in.readlines());
+
+    # construct array of tokens for later use
+    tokens = [token for token in sim.tokenize(lines)];
+
+    index, config = process_config_tokens(tokens, Config(), 0)
+    
+    nrUnasignedRobots = config.robotColony.count("")
+    nrUnasignedColonies = sum(v for k, v in config.nrRobotsPerColony.items())
+    logging.debug("Nr robots without asigned colonies = %d" % nrUnasignedRobots)
+    logging.debug("Nr colonies without asigned robots = %d" % nrUnasignedColonies)
+    
+    if (nrUnasignedRobots > 0):
+        if (nrUnasignedRobots > nrUnasignedColonies):
+            logging.error("There are not enough unasigned colonies in order to ensure that each of the %d robots has a Pcolony asociated with it" % config.nrRobots)
+        else:
+            while (nrUnasignedRobots > 0):
+                unasignedRobotIndex = config.robotColony.index("")
+                for colonyName in config.C:
+                    # if the currently assigned number of robots is less than what the user requested
+                    if (config.nrAsignedRobotsPerColony[colonyName] < config.nrRobotsPerColony[colonyName]):
+                        # assign colonyName with the first unasigned robot
+                        config.robotColony[unasignedRobotIndex] = colonyName
+                        # increase the number of assignments for this colony
+                        config.nrAsignedRobotsPerColony[colonyName] += 1
+                        # decrease the number of unasigned robots
+                        nrUnasignedRobots -= 1
+                        logging.debug("unasignedRobotIndex = %d, robotColony = %s, nrRobotsPerColony = %s, nrAsignedRobotsPerColony = %s" % (unasignedRobotIndex, config.robotColony, config.nrRobotsPerColony, config.nrAsignedRobotsPerColony))
+                        break
+
+    return config
+# end readConfigFile()
 
 ##########################################################################
 #   MAIN
@@ -71,6 +210,7 @@ if (len(sys.argv) < 2):
 
 # read Pcolony from file
 pObj = sim.readInputFile(sys.argv[1])
+config = readConfigFile("config.txt")
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
@@ -99,7 +239,7 @@ else:
     #end for clones
 
     # initialize the simResult dictionary
-    pObj.simResult = {colony_name: -1 for colony_name in pObj.C}
+    pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
 while (True):
     print("\n")
     
