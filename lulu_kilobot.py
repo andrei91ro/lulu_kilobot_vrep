@@ -210,8 +210,8 @@ if (len(sys.argv) < 2):
 
 # read Pcolony from file
 pObj = sim.readInputFile(sys.argv[1])
-# if the p object read from the input file is a Pswarm or XPcolony
-if (type(pObj) == sim.Pswarm or type(pObj) == sim.XPcolony):
+# if the p object read from the input file is a Pswarm
+if (type(pObj) == sim.Pswarm):
     if (len(sys.argv) < 3):
         logging.error("Expected config file path as second parameter")
         exit(1)
@@ -291,6 +291,8 @@ while (True):
             bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
 # end while
 
-confirmRemoveRobots = input("Remove cloned robots from scene ? (y/n)")
-if (confirmRemoveRobots in ('y', 'Y')):
-    bridge.removeRobots()
+# show remove clone confirmation only when simulating Pswarms
+if (type(pObj) == sim.Pswarm):
+    confirmRemoveRobots = input("Remove cloned robots from scene ? (y/n)")
+    if (confirmRemoveRobots in ('y', 'Y')):
+        bridge.removeRobots()
