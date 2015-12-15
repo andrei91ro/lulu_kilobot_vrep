@@ -15,7 +15,7 @@ class Kilobot():
         self.raw_input_state = {} # dictionary of raw sensor values
         self.output_state = {
                 "motion" : vrep_bridge.Motion.stop, # motion (vrep_bridge.Motion) motion type
-                "rgb_led" : [0, 0, 0] # light [r, g, b] with values between 0-2
+                "led_rgb" : [0, 0, 0] # light [r, g, b] with values between 0-2
                 } # dictionary of output states
     # end __init__()
 
@@ -27,14 +27,25 @@ class Kilobot():
     def procOutputModule(self):
         """Process the objects present in the output module agents and transform them into commands that can be sent to the kilobot through vrep_bridge.setState()"""
         self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
-        self.output_state["rgb_led"] = [0, 0, 0] # default color (off)
+        self.output_state["led_rgb"] = [0, 0, 0] # default color (off)
 
-        if ('m_S' in self.colony.agents['AG_motion'].obj):
-            self.output_state["motion"] = vrep_bridge.Motion.forward
-        elif ('m_L' in self.colony.agents['AG_motion'].obj):
-            self.output_state["motion"] = vrep_bridge.Motion.left
-        elif ('m_R' in self.colony.agents['AG_motion'].obj):
-            self.output_state["motion"] = vrep_bridge.Motion.right
+        # if the 'motion' agent is defined
+        if ('motion' in self.colony.B):
+            if ('m_S' in self.colony.agents['motion'].obj):
+                self.output_state["motion"] = vrep_bridge.Motion.forward
+            elif ('m_L' in self.colony.agents['motion'].obj):
+                self.output_state["motion"] = vrep_bridge.Motion.left
+            elif ('m_R' in self.colony.agents['motion'].obj):
+                self.output_state["motion"] = vrep_bridge.Motion.right
+
+        # if the 'led_rgb' agent is defined
+        if ('led_rgb' in self.colony.B):
+            if ('c_R' in self.colony.agents["led_rgb"].obj):
+                self.output_state["led_rgb"] = vrep_bridge.Led_rgb.red
+            elif ('c_G' in self.colony.agents["led_rgb"].obj):
+                self.output_state["led_rgb"] = vrep_bridge.Led_rgb.green
+            elif ('c_B' in self.colony.agents["led_rgb"].obj):
+                self.output_state["led_rgb"] = vrep_bridge.Led_rgb.blue
 
     #end procOutputModule()
 
@@ -284,11 +295,11 @@ while (True):
 
     if (type(pObj) == sim.Pcolony):
         robot.procOutputModule()
-        bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
+        bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
     else:
         for robot in robots:
             robot.procOutputModule()
-            bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["rgb_led"])
+            bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
 # end while
 
 # show remove clone confirmation only when simulating Pswarms

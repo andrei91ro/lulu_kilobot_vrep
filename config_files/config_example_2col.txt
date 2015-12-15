@@ -1,9 +1,0 @@
-C = {pi_plus, pi_minus};
-nrRobots = 5;
-
-robot_0 = pi_plus;
-robot_1 = pi_minus;
-
-pi_plus = 4;
-pi_minus = 1;
-

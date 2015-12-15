@@ -1,0 +1,26 @@
+pi = {
+    A = {l_m, m_0, m_S, m_L, m_R, c_0, c_R, c_G, c_B};
+    e = e;
+    f = f;
+    n = 3;
+    env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+    B = {command, motion, led_rgb};
+        command = ({e, e, e};
+                < e->e, e->e, e<->l_m >,
+                < e->c_G, l_m->m_S, e<->f/e<->e >,
+                < f->e, c_G<->e, m_S<->e >,
+                < c_G->c_0, m_S->m_0, e<->e >,
+                < e->e, c_0<->e, m_0<->e > );
+
+        motion = ({e, e, e};
+                < e->e, e->l_m, e<->m_S >,
+                < e->e, m_S->e, l_m<->e >
+                < e->e, e->e, e<->m_0 >,
+                < e->e, m_0->e, e->e >);
+
+        led_rgb = ({e, e, e};
+                < e->e, e->e, e<->c_G >,
+                < e->e, c_G->e, e->e >
+                < e->e, e->e, e<->c_0 >,
+                < e->e, c_0->e, e->e >);
+}
