@@ -17,11 +17,105 @@ class Kilobot():
                 "motion" : vrep_bridge.Motion.stop, # motion (vrep_bridge.Motion) motion type
                 "led_rgb" : [0, 0, 0] # light [r, g, b] with values between 0-2
                 } # dictionary of output states
+        self.distances = {} # dictionary of the most recent distance measurements = {robot_uid: distance}
+        self.distances_prev = {} # dictionary of previous distance measurements = {robot_uid: distance}
+        self.light = -1 # current light intensity
+        self.light_prev = -1 # previous light intensity
     # end __init__()
 
-    def procInputModule(self):
-        """Process raw_state info received from sensors and populate the input module agents with significant objects"""
-        pass
+    def procInputModule(self, paramLightThreshold = 20, paramDistanceThreshold = 55):
+        """Process raw_state info received from sensors and populate the input module agents with significant objects
+
+        :paramLightThreshold: light threshold value used to classify a light sensor reading as low or high
+        :paramDistanceThreshold: distance threshold value used to classify a distance from a robot as small or big"""
+
+        for uid, d in self.raw_input_state["distances"].items():
+            # if I already have a distance from this robot
+            if (uid in self.distances):
+                # update previous distances
+                self.distances_prev[uid] = self.distances[uid]
+                # store the new distance
+                self.distances[uid] = d
+            # if this is the first time I receive a measurement from this robot
+            else:
+                self.distances[uid] = self.distances_prev[uid] = d
+
+        # if this is not the first light intensity measurement
+        if (self.light != -1):
+            self.light_prev = self.light
+            self.light = self.raw_input_state["light"]
+        # this is the first time I receive a light intensity measurement
+        else:
+            self.light = self.light_prev = self.raw_input_state["light"]
+
+        # if the light_sensor agent is defined
+        if ('light_sensor' in self.colony.B):
+            # transfer numeric light intensity measurements to symbolic values
+            for o in self.colony.agents['light_sensor'].obj:
+                # l == what is the current light value? (low / high)
+                if (o == 'l'):
+                    # delete the request object and replace it with the reply object
+                    # in order to reduce the number of sim steps needed
+                    del self.colony.agents['light_sensor'].obj[o]
+
+                    if (self.light <= paramLightThreshold):
+                        self.colony.agents['light_sensor'].obj['S'] = 1 # light intensity low
+                    else:
+                        self.colony.agents['light_sensor'].obj['B'] = 1 # light intensity high
+
+                # r == what is the light variation? (decrease / increase / constant)
+                elif (o == 'r'):
+                    # delete the request object and replace it with the reply object
+                    # in order to reduce the number of sim steps needed
+                    del self.colony.agents['light_sensor'].obj[o]
+
+                    if (self.light < self.light_prev):
+                        self.colony.agents['light_sensor'].obj['R_m'] = 1 # light intensity decreasing
+                    elif (self.light > self.light_prev):
+                        self.colony.agents['light_sensor'].obj['R_p'] = 1 # light intensity increasing
+                    else:
+                        self.colony.agents['light_sensor'].obj['R_0'] = 1 # light intensity constant
+
+        # if the msg_distance agent is defined
+        if ('msg_distance' in self.colony.B):
+            # transfer numeric distance measurements to symbolic values
+            for o in self.colony.agents['msg_distance'].obj:
+                # commands are directed to a certain uid (cmdName_uid) ex v_5
+                if (o.startswith("d_") or o.startswith("v_")):
+                    cmd = o.split('_')[0]
+                    uid = int(o.split('_')[1])
+
+                    # delete the request object and replace it with the reply object
+                    # in order to reduce the number of sim steps needed
+                    del self.colony.agents['msg_distance'].obj[o]
+
+                    # what is the current distance from robot x? (small / big)
+                    if (cmd == 'd'):
+                        # if I have any measurements of robot uid
+                        if (uid in self.distances):
+                            if (self.distances[uid] <= paramDistanceThreshold):
+                                self.colony.agents['msg_distance'].obj["S_%d" % uid] = 1 # distance small
+                            elif (self.distances[uid] > paramDistanceThreshold):
+                                self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
+                        # there are no measurements of robot uid
+                        else:
+                            # publish distance big to not confuse agents that are waiting for info
+                            self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
+
+                    # what is the distance variation for robot x? (decrease / increase / constant)
+                    elif (cmd == 'v'):
+                        # if I have any measurements of robot uid
+                        if (uid in self.distances):
+                            if (self.distances[uid] < self.distances_prev[uid]):
+                                self.colony.agents['msg_distance'].obj["V_%d_m" % uid] = 1 # distance decreasing
+                            elif (self.distances[uid] > self.distances_prev[uid]):
+                                self.colony.agents['msg_distance'].obj["V_%d_p" % uid] = 1 # distance increasing
+                            else:
+                                self.colony.agents['msg_distance'].obj["V_%d_0" % uid] = 1 # distance constant
+                        # there are no measurements of robot uid
+                        else:
+                            # publish distance constant to not confuse agents that are waiting for info
+                            self.colony.agents['msg_distance'].obj["V_%d_0" % uid] = 1 # distance constant
     # end procInputModule()
 
     def procOutputModule(self):
