@@ -1,0 +1,5 @@
+C = {xp_minus_straight, xp_minus_left};
+nrRobots = 2;
+
+robot_0 = xp_minus_straight;
+robot_1 = xp_minus_left;

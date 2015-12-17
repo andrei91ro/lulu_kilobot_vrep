@@ -1,0 +1,10 @@
+C = {pi_minus_straight, pi_minus_left, pi_minus_right};
+nrRobots = 5;
+
+robot_0 = pi_minus_straight;
+robot_1 = pi_minus_straight;
+
+pi_minus_straight = 2;
+pi_minus_left = 1;
+pi_minus_right = 2
+

@@ -1,0 +1,66 @@
+pswarm = {
+    global_env = {};
+    C = {xp_minus_straight_closed_loop_1, xp_minus_straight_closed_loop_0};
+
+        xp_minus_straight_closed_loop_1 = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B, d_0, S_0, B_0};
+            e = e;
+            f = f;
+            n = 2;
+            env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+            B = {command, motion, msg_distance};
+                command = ({e, d_0};
+                        < e->e, d_0<->l_m >,
+                        < l_m->m_S, e<->f/e<->e >,
+
+                        < f->d_0, m_S<->B_0 >,
+                        < f->e, e<->S_0 >,
+
+                        < B_0->e, d_0<->l_m >,
+
+                        < m_S->m_0, e<->e >,
+                        < e->e, m_0<->e > );
+
+                motion = ({e, e};
+                        < e->l_m, e<->m_S >,
+                        < m_S->e, l_m<->e/e->e >
+                        < e->e, e<->m_0 >,
+                        < m_0->e, e<->m_0/e->e >);
+
+                msg_distance = ({e, e};
+                        < e->m_0,  e<->d_0 >,
+                        < m_0<->e, S_0<->e >,
+                        < m_0->e,  B_0<->e >);
+        };
+
+        xp_minus_straight_closed_loop_0 = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B, d_1, S_1, B_1};
+            e = e;
+            f = f;
+            n = 2;
+            env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+            B = {command, motion, msg_distance};
+                command = ({e, d_1};
+                        < e->e, d_1<->l_m >,
+                        < l_m->m_S, e<->f/e<->e >,
+
+                        < f->d_1, m_S<->B_1 >,
+                        < f->e, e<->S_1 >,
+
+                        < B_1->e, d_1<->l_m >,
+
+                        < m_S->m_0, e<->e >,
+                        < e->e, m_0<->e > );
+
+                motion = ({e, e};
+                        < e->l_m, e<->m_S >,
+                        < m_S->e, l_m<->e/e->e >
+                        < e->e, e<->m_0 >,
+                        < m_0->e, e<->m_0/e->e >);
+
+                msg_distance = ({e, e};
+                        < e->m_0,  e<->d_1 >,
+                        < m_0<->e, S_1<->e >,
+                        < m_0->e,  B_1<->e >);
+        };
+}

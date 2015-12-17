@@ -1,0 +1,66 @@
+pswarm = {
+    C = {pi_minus_straight, pi_minus_left, pi_minus_right};
+
+        pi_minus_straight = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B};
+            e = e;
+            f = f;
+            n = 2;
+            env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+            B = {command, motion};
+                command = ({e, e};
+                        < e->e, e<->l_m >,
+                        < l_m->m_S, e<->f/e<->e >,
+                        < f->e, m_S<->e >,
+                        < m_S->m_0, e<->e >,
+                        < e->e, m_0<->e > );
+                    
+                motion = ({e, e};
+                        < e->l_m, e<->m_S >,
+                        < m_S->e, l_m<->e/e->e >
+                        < e->e, e<->m_0 >,
+                        < m_0->e, e<->m_0/e->e >);
+        };
+
+        pi_minus_left = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B};
+            e = e;
+            f = f;
+            n = 2;
+            env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+            B = {command, motion};
+                command = ({e, e};
+                        < e->e, e<->l_m >,
+                        < l_m->m_L, e<->f/e<->e >,
+                        < f->e, m_L<->e >,
+                        < m_L->m_0, e<->e >,
+                        < e->e, m_0<->e > );
+                    
+                motion = ({e, e};
+                        < e->l_m, e<->m_L >,
+                        < m_L->e, l_m<->e/e->e >
+                        < e->e, e<->m_0 >,
+                        < m_0->e, e<->m_0/e->e >);
+        };
+
+        pi_minus_right = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B};
+            e = e;
+            f = f;
+            n = 2;
+            env = {f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, f, l_m};
+            B = {command, motion};
+                command = ({e, e};
+                        < e->e, e<->l_m >,
+                        < l_m->m_R, e<->f/e<->e >,
+                        < f->e, m_R<->e >,
+                        < m_R->m_0, e<->e >,
+                        < e->e, m_0<->e > );
+                    
+                motion = ({e, e};
+                        < e->l_m, e<->m_R >,
+                        < m_R->e, l_m<->e/e->e >
+                        < e->e, e<->m_0 >,
+                        < m_0->e, e<->m_0/e->e >);
+        };
+}

@@ -1,0 +1,5 @@
+C = {xp_minus_straight_closed_loop_0, xp_minus_straight_closed_loop_1};
+nrRobots = 2;
+
+robot_0 = xp_minus_straight_closed_loop_0;
+robot_1 = xp_minus_straight_closed_loop_1;
