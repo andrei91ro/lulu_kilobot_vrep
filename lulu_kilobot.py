@@ -83,7 +83,7 @@ class Kilobot():
                 # commands are directed to a certain uid (cmdName_uid) ex v_5
                 if (o.startswith("d_") or o.startswith("v_")):
                     cmd = o.split('_')[0]
-                    uid = int(o.split('_')[1])
+                    uid = o.split('_')[1]
 
                     # delete the request object and replace it with the reply object
                     # in order to reduce the number of sim steps needed
@@ -91,16 +91,34 @@ class Kilobot():
 
                     # what is the current distance from robot x? (small / big)
                     if (cmd == 'd'):
-                        # if I have any measurements of robot uid
-                        if (uid in self.distances):
-                            if (self.distances[uid] <= paramDistanceThreshold):
-                                self.colony.agents['msg_distance'].obj["S_%d" % uid] = 1 # distance small
-                            elif (self.distances[uid] > paramDistanceThreshold):
-                                self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
-                        # there are no measurements of robot uid
+                        # determine the minimum distance from all my neighbours
+                        if (uid == "all"):
+                            dist_big = True # consider all robots to be distant
+                            for uid, d in self.distances.items():
+                                # if one of the received distances is short
+                                if (d <= paramDistanceThreshold):
+                                    # the minimum distance is short
+                                    dist_big = False
+                                    break
+                            # if no robot was closer than the threshold
+                            if (dist_big):
+                                self.colony.agents['msg_distance'].obj["B_all"] = 1 # distance big
+                            else:
+                                self.colony.agents['msg_distance'].obj["S_all"] = 1 # distance small (at least one robot is close)
+
+                        # determine the distance from a specific robot:
                         else:
-                            # publish distance big to not confuse agents that are waiting for info
-                            self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
+                            uid = int(uid)
+                            # if I have any measurements of robot uid
+                            if (uid in self.distances):
+                                if (self.distances[uid] <= paramDistanceThreshold):
+                                    self.colony.agents['msg_distance'].obj["S_%d" % uid] = 1 # distance small
+                                elif (self.distances[uid] > paramDistanceThreshold):
+                                    self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
+                            # there are no measurements of robot uid
+                            else:
+                                # publish distance big to not confuse agents that are waiting for info
+                                self.colony.agents['msg_distance'].obj["B_%d" % uid] = 1 # distance big
 
                     # what is the distance variation for robot x? (decrease / increase / constant)
                     elif (cmd == 'v'):
@@ -120,11 +138,13 @@ class Kilobot():
 
     def procOutputModule(self):
         """Process the objects present in the output module agents and transform them into commands that can be sent to the kilobot through vrep_bridge.setState()"""
-        self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
-        self.output_state["led_rgb"] = [0, 0, 0] # default color (off)
+        #self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
+        #self.output_state["led_rgb"] = [0, 0, 0] # default color (off)
 
         # if the 'motion' agent is defined
         if ('motion' in self.colony.B):
+            if ('m_0' in self.colony.agents['motion'].obj):
+                self.output_state["motion"] = vrep_bridge.Motion.stop
             if ('m_S' in self.colony.agents['motion'].obj):
                 self.output_state["motion"] = vrep_bridge.Motion.forward
             elif ('m_L' in self.colony.agents['motion'].obj):
@@ -140,6 +160,8 @@ class Kilobot():
                 self.output_state["led_rgb"] = vrep_bridge.Led_rgb.green
             elif ('c_B' in self.colony.agents["led_rgb"].obj):
                 self.output_state["led_rgb"] = vrep_bridge.Led_rgb.blue
+            elif ('c_W' in self.colony.agents["led_rgb"].obj):
+                self.output_state["led_rgb"] = vrep_bridge.Led_rgb.white
 
     #end procOutputModule()
 
