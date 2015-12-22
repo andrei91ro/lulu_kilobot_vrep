@@ -136,10 +136,14 @@ class Kilobot():
                             self.colony.agents['msg_distance'].obj["V_%d_0" % uid] = 1 # distance constant
     # end procInputModule()
 
-    def procOutputModule(self):
+    def procOutputModule(self, defineDefaultMotion = True):
         """Process the objects present in the output module agents and transform them into commands that can be sent to the kilobot through vrep_bridge.setState()"""
-        #self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
-        #self.output_state["led_rgb"] = [0, 0, 0] # default color (off)
+        # define a defaultMotion (that is applied at all function calls that do not define a specific output state)
+        # this causes the robots to move in a STEPPED manner (due to the fact that the previous motion / led command 
+        # is cancelled by the default command
+        if (defineDefaultMotion):
+            self.output_state["motion"] = vrep_bridge.Motion.stop # default motion
+            self.output_state["led_rgb"] = [0, 0, 0] # default color (off)
 
         # if the 'motion' agent is defined
         if ('motion' in self.colony.B):
@@ -174,6 +178,7 @@ class Config():
     def __init__(self):
         self.C = [] # list of colony names
         self.nrRobots = 0 # nr of simulated robots
+        self.spawnType = vrep_bridge.SpawnType.ox_plus
         self.nrRobotsPerColony = {} # dictionary (colony_name : nr_robots_that_will_use_this_colony}
         self.robotColony = [] # list [robot_nr] = "name_of_colony_that_will_be_used"
         self.robotName = [] # list of robot names (generated from their uid) ex ['robot_0', 'robot_1']
@@ -237,6 +242,16 @@ def process_config_tokens(tokens, parent, index):
                     index, numberOfRobotsOnColony = process_config_tokens(tokens, int(), index + 1)
                     # numberOfRobotsOnColony will be assigned the colony specified on the left hand side of the atribution
                     result.nrRobotsPerColony[prev_token.value] = numberOfRobotsOnColony
+
+                # if the previous token is a spawnType
+                elif (prev_token.value == "spawnType"):
+                    logging.info("setting spawnType value");
+                    index, spawnTypeName = process_config_tokens(tokens, str(), index + 1)
+                    if (spawnTypeName in vrep_bridge.SpawnTypeNames):
+                        result.spawnType = vrep_bridge.SpawnTypeNames[spawnTypeName]
+                        logging.info("spawnType = %s" % spawnTypeName)
+                    else:
+                        logging.warning("spawn type %s not available" % spawnTypeName)
 
         elif (type(parent) == list):
             logging.debug("processing as List")
@@ -357,7 +372,7 @@ else:
     config.nrConfiguredRobotsWithColony = {colonyName: 0 for colonyName in config.nrAsignedRobotsPerColony.keys()}
 
     # spawn n-1 robots because 1 is already in the scene and is copied
-    bridge.spawnRobots(nr = config.nrRobots - 1)
+    bridge.spawnRobots(nr = config.nrRobots - 1, spawnType = config.spawnType)
 
     # create aditional copies of the Pcolony and assign then to each robot
     for i in range(config.nrRobots):

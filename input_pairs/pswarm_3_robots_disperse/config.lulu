@@ -1,0 +1,4 @@
+C = {pi_disperse};
+nrRobots = 3;
+
+pi_disperse = 3;

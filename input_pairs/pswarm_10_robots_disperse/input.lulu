@@ -1,0 +1,73 @@
+pswarm = {
+    global_env = {};
+    C = {pi_disperse};
+
+        pi_disperse = {
+            A = {l_m, m_0, m_S, m_L, m_R, c_R, c_G, c_B, c_W, d_all, S_all, B_all};
+            e = e;
+            f = f;
+            n = 3;
+            env = {l_m};
+            B = {command, motion, msg_distance, led_rgb};
+                command = ({e, e, d_all};
+                        < e->e, e->e, d_all<->e >,
+
+                        # if distance is small then randomly chose a new movement direction
+                        < e->c_G, e->m_S, e<->S_all >, # 50% straight (green led)
+                        < e->c_G, e->m_S, e<->S_all >,
+                        < e->c_R, e->m_L, e<->S_all >, # 25% left (red led)
+                        < e->c_B, e->m_R, e<->S_all >, # 25% right (blue led)
+
+                        # if distance is big then stop
+                        < e->c_W, e->m_0, e<->B_all >,
+
+                        # publish the new commands
+                        < c_G<->e, m_S<->e, S_all->d_all >,
+                        < c_R<->e, m_L<->e, S_all->d_all >,
+                        < c_B<->e, m_R<->e, S_all->d_all >,
+                        #< c_W<->e, m_0<->e, B_all->d_all >,
+                        < c_W<->e, m_0<->e, B_all->e >,
+                );
+
+                motion = ({e, e, e};
+                        # process move stop
+                        < e->e, e->e, e<->m_0 >,
+                        < e->e, e->e, m_0->e>,
+                        
+                        # process move straight
+                        < e->e, e->e, e<->m_S >,
+                        < e->e, e->e, m_S->e>,
+                        
+                        # process move left
+                        < e->e, e->e, e<->m_L >,
+                        < e->e, e->e, m_L->e>,
+                        
+                        # process move right
+                        < e->e, e->e, e<->m_R >,
+                        < e->e, e->e, m_R->e>);
+                
+                led_rgb = ({e, e, e};
+                        # process color white
+                        < e->e, e->e, e<->c_W >,
+                        < e->e, e->e, c_W->e>,
+
+                        # process color green
+                        < e->e, e->e, e<->c_G >,
+                        < e->e, e->e, c_G->e>,
+                        
+                        # process color red
+                        < e->e, e->e, e<->c_R >,
+                        < e->e, e->e, c_R->e>,
+                        
+                        # process color blue
+                        < e->e, e->e, e<->c_B >,
+                        < e->e, e->e, c_B->e>);
+
+                msg_distance = ({e, e, e};
+                        # process distance request
+                        < e->e, e->e,  e<->d_all >,
+                        < e->e, e->e, S_all<->e >,
+                        < e->e, e->e,  B_all<->e >);
+        };
+
+}
