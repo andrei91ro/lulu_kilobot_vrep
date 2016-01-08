@@ -179,6 +179,7 @@ class Config():
         self.C = [] # list of colony names
         self.nrRobots = 0 # nr of simulated robots
         self.spawnType = vrep_bridge.SpawnType.ox_plus
+        self.clearDistancesStepNr = 10
         self.nrRobotsPerColony = {} # dictionary (colony_name : nr_robots_that_will_use_this_colony}
         self.robotColony = [] # list [robot_nr] = "name_of_colony_that_will_be_used"
         self.robotName = [] # list of robot names (generated from their uid) ex ['robot_0', 'robot_1']
@@ -406,6 +407,10 @@ else:
 
     # initialize the simResult dictionary
     pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
+
+simStepNr = 0
+# the next distances reinitialization will take place after config.clearDistancesStepNr steps from now
+nextClearStepNr = simStepNr + config.clearDistancesStepNr
 while (True):
     print("\n")
     
@@ -428,9 +433,22 @@ while (True):
         robot.procOutputModule()
         bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
     else:
+        if (simStepNr >= nextClearStepNr and config.clearDistancesStepNr > 0):
+            # the next distances reinitialization will take place after config.clearDistancesStepNr steps from now
+            nextClearStepNr = simStepNr + config.clearDistancesStepNr
+            logging.warn("CLEARING distances")
+            for robot in robots:
+                # clear the distance history every n cycles to prevent old entries from affecting the response of the
+                # algorithms that depend on distance
+                robot.distances = robot.distances_prev = {}
+        # end if clearStep
+
+        # process output module for all robots
         for robot in robots:
             robot.procOutputModule()
             bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
+
+    simStepNr += 1
 # end while
 
 # show remove clone confirmation only when simulating Pswarms
