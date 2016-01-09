@@ -21,6 +21,7 @@ class Kilobot():
         self.distances_prev = {} # dictionary of previous distance measurements = {robot_uid: distance}
         self.light = -1 # current light intensity
         self.light_prev = -1 # previous light intensity
+        self.known_robots = [] # list of known (friend) robot IDs
     # end __init__()
 
     def procInputModule(self, paramLightThreshold = 20, paramDistanceThreshold = 55):
@@ -417,6 +418,15 @@ else:
 
     # initialize the simResult dictionary
     pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
+
+    # this delay is necessary for the robots to broadcast and receive all neighbour IDs
+    input("Press Enter to continue at least 2 seconds after starting the simulation in V-REP and pressing Run in KilobotController")
+    # request & store the known (friend) robot IDs for each robot
+    for robot in robots:
+        robot.known_robots = bridge.getKnownRobotIds(robot.uid)
+        # convert numeric IDs (1, 2, 3) into symbolic IDs (id_1, id_2, id_3)
+        for id in robot.known_robots:
+            robot.colony.env["id_%d" % id] = 1 # ex. id_2 is now in the Pcolony environment
 
 simStepNr = 0
 # the next distances reinitialization will take place after config.clearDistancesStepNr steps from now
