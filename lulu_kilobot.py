@@ -360,6 +360,7 @@ if (type(pObj) == sim.Pswarm):
         exit(1)
 
     config = readConfigFile(sys.argv[2])
+
 # make link with v-rep
 bridge = vrep_bridge.VrepBridge()
 
@@ -404,6 +405,15 @@ else:
     for i in range(config.nrRobots):
         print("robot_%d    %s" % (i, config.robotColony[i]))
     print("\n")
+
+    logging.info("Processing wildcards")
+
+    # expand wildcards (now that we know the total nr of robots of the swarm and their associated Pcolony)
+    for i in range(config.nrRobots):
+        robotSuffix = [str(i) for i in range(config.nrRobots)] # ['0', '1', .. 'n']
+        robotSuffix.pop(i) # remove the current robot
+        # perform the actual wildcard expansion
+        robots[i].colony.processWildcards(robotSuffix)
 
     # initialize the simResult dictionary
     pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
