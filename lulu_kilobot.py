@@ -22,6 +22,8 @@ class Kilobot():
         self.light = -1 # current light intensity
         self.light_prev = -1 # previous light intensity
         self.known_robots = [] # list of known (friend) robot IDs
+        self.neighbour_ids = [] # list of robot IDs that I have recently received a msg from
+        self.neighbour_index = 0 # current position on neighbour_ids[]
     # end __init__()
 
     def procInputModule(self, paramLightThreshold = 20, paramDistanceThreshold = 55):
@@ -106,6 +108,33 @@ class Kilobot():
                                 self.colony.agents['msg_distance'].obj["B_all"] = 1 # distance big
                             else:
                                 self.colony.agents['msg_distance'].obj["S_all"] = 1 # distance small (at least one robot is close)
+
+                        # determine the distance from the next robot in the distances dictionary
+                        # this way command can individually test distances, without requesting individual robot IDs
+                        elif (uid == "next"):
+                            # extract current neighbour ids from the distances dictionary
+                            self.neighbour_ids = list(self.distances.keys())
+                            # if we have neighbour robots around us
+                            if (len(self.neighbour_ids) > 0):
+                                # reset neighbour_index if it exceeds the list length
+                                if (self.neighbour_index >= len(self.neighbour_ids)):
+                                    self.neighbour_index = 0
+
+                                #logging.debug("Publishing distance for robot id = %d" % self.neighbour_ids[self.neighbour_index])
+                                if (self.distances[self.neighbour_ids[self.neighbour_index]] <= paramDistanceThreshold):
+                                    self.colony.agents['msg_distance'].obj["S_%d" % self.neighbour_ids[self.neighbour_index]] = 1 # distance small
+                                    #logging.info("[procInputModule (%d)] d_next -> S_%d, distances = %s" % (self.uid, self.neighbour_ids[self.neighbour_index], self.distances))
+                                else:
+                                    self.colony.agents['msg_distance'].obj["B_%d" % self.neighbour_ids[self.neighbour_index]] = 1 # distance big
+                                    #logging.info("[procInputModule (%d)] d_next -> B_%d, distances = %s" % (self.uid, self.neighbour_ids[self.neighbour_index], self.distances))
+
+                                self.neighbour_index += 1
+
+                            # we are far away from all robots
+                            else:
+                                # publish distance big (from all robots) as response to the d_all request
+                                self.colony.agents['msg_distance'].obj["B_all"] = 1 # distance big
+                                #logging.info("[procInputModule (%d)] d_next -> B_all" % self.uid)
 
                         # determine the distance from a specific robot:
                         else:
