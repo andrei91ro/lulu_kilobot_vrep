@@ -132,7 +132,30 @@ class Kilobot():
 
                             # we are far away from all robots
                             else:
-                                # publish distance big (from all robots) as response to the d_all request
+                                # publish distance big (from all robots) as response to the d_next request
+                                self.colony.agents['msg_distance'].obj["B_all"] = 1 # distance big
+                                #logging.info("[procInputModule (%d)] d_next -> B_all" % self.uid)
+
+                        # determine the minimum distance from all the robots in the current distances dictionary
+                        # this way command can individually test distances, without requesting individual robot IDs
+                        # and also react immediately if a robot is close
+                        elif (uid == "min"):
+                            # if we have neighbour robots around us
+                            if (len(self.distances) > 0):
+                                # get the key (id) of the minimum distance in the distances dictionary)
+                                self.neighbour_index = min(self.distances, key=self.distances.get)
+
+                                #logging.debug("Publishing distance for robot id = %d" % self.neighbour_index)
+                                if (self.distances[self.neighbour_index] <= paramDistanceThreshold):
+                                    self.colony.agents['msg_distance'].obj["S_%d" % self.neighbour_index] = 1 # distance small
+                                    #logging.info("[procInputModule (%d)] d_next -> S_%d, distances = %s" % (self.uid, self.neighbour_index, self.distances))
+                                else:
+                                    self.colony.agents['msg_distance'].obj["B_%d" % self.neighbour_index] = 1 # distance big
+                                    #logging.info("[procInputModule (%d)] d_next -> B_%d, distances = %s" % (self.uid, self.neighbour_index, self.distances))
+
+                            # we are far away from all robots
+                            else:
+                                # publish distance big (from all robots) as response to the d_min request
                                 self.colony.agents['msg_distance'].obj["B_all"] = 1 # distance big
                                 #logging.info("[procInputModule (%d)] d_next -> B_all" % self.uid)
 
