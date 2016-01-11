@@ -4,6 +4,14 @@ from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
 from copy import deepcopy # for deepcopy (value not reference as = does for objects)
+import re # for regex matching
+
+# Regex pattern list used to match input / output objects
+inputRequest_patterns = inputReqPatterns = [r"d_.", r"v_." r"l", r"r"]
+outputRequest_patterns = outputReqPatterns = [r"m_0", r"m_S", r"m_L", r"m_R", r"c_."]
+# compiled regex objects for joined patterns of input / output
+inputRequest_regex = re.compile('|'.join("(?P<pat_%d>%s)" % (i, pattern) for (i, pattern) in enumerate(inputRequest_patterns)))
+outputRequest_regex = re.compile('|'.join("(?P<pat_%d>%s)" % (i, pattern) for (i, pattern) in enumerate(outputRequest_patterns)))
 
 class Kilobot():
 
@@ -12,7 +20,7 @@ class Kilobot():
     def __init__(self, uid, pcolony):
         self.uid = uid # the unique id of the robot 
         self.colony = pcolony # reference to the Pcolony used to control this robot
-        self.raw_input_state = {} # dictionary of raw sensor values
+        self.raw_input_state = {"uid": uid, "light": [], "distances":{}} # dictionary of raw sensor values
         self.output_state = {
                 "motion" : vrep_bridge.Motion.stop, # motion (vrep_bridge.Motion) motion type
                 "led_rgb" : [0, 0, 0] # light [r, g, b] with values between 0-2
@@ -22,6 +30,44 @@ class Kilobot():
         self.light = -1 # current light intensity
         self.light_prev = -1 # previous light intensity
     # end __init__()
+
+    def wasInputRequestMade(self):
+        """Check that an input request object is present within the colony's environment
+        :returns: True / False"""
+
+        # try each of the input patterns against each object from the colony's environment
+        # ex. checks = [True, False, True, True, ...]
+        checks = [inputRequest_regex.match(obj) != None for obj in self.colony.env]
+
+        # return true if there is at least one True element in checks
+        # i.e at least one input request object exists in the environment
+        return any(checks)
+    # end wasInputRequestMade()
+
+    def wasOutputRequestMade(self):
+        """Check that an output request object is present within one of the colony's output agents (motion / led_rgb)
+        :returns: True / False"""
+
+        # initially both checks are false because it is possible that the colony may not contain the given agent
+        checks_motion = [False]
+        checks_led = [False]
+
+        # if motion agent was defined
+        if ("motion" in self.colony.B):
+            # try each of the output patterns against each object from the colony's motion agent
+            # ex. checks = [True, False, True, True, ...]
+            checks_motion = [outputRequest_regex.match(obj) != None for obj in self.colony.agents["motion"].obj]
+
+        # if led_rgb agent was defined
+        if ("led_rgb" in self.colony.B):
+            # try each of the output patterns against each object from the colony's motion agent
+            # ex. checks = [True, False, True, True, ...]
+            checks_led = [outputRequest_regex.match(obj) != None for obj in self.colony.agents["led_rgb"].obj]
+
+        # return true if there is at least one True element in checks
+        # i.e at least one output request object exists in the environment
+        return any(checks_motion) or any(checks_led)
+    # end wasOutputRequestMade()
 
     def procInputModule(self, paramLightThreshold = 20, paramDistanceThreshold = 55):
         """Process raw_state info received from sensors and populate the input module agents with significant objects
@@ -413,13 +459,17 @@ simStepNr = 0
 nextClearStepNr = simStepNr + config.clearDistancesStepNr
 while (True):
     print("\n")
-    
+
     if (type(pObj) == sim.Pcolony):
-        robot.raw_input_state = bridge.getState(robot.uid)
+        # request current sensor data of the robot from V-REP only if an input request was made
+        if (robot.wasInputRequestMade()):
+            robot.raw_input_state = bridge.getState(robot.uid)
         robot.procInputModule()
     else:
         for robot in robots:
-            robot.raw_input_state = bridge.getState(robot.uid)
+            # request current sensor data of the robot from V-REP only if an input request was made
+            if (robot.wasInputRequestMade()):
+                robot.raw_input_state = bridge.getState(robot.uid)
             robot.procInputModule()
 
     sim_result = pObj.runSimulationStep()
@@ -431,7 +481,9 @@ while (True):
 
     if (type(pObj) == sim.Pcolony):
         robot.procOutputModule()
-        bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
+        # set the output state of the robot only if output command objects are present in the output modules
+        if (robot.wasOutputRequestMade()):
+            bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
     else:
         if (simStepNr >= nextClearStepNr and config.clearDistancesStepNr > 0):
             # the next distances reinitialization will take place after config.clearDistancesStepNr steps from now
@@ -446,7 +498,9 @@ while (True):
         # process output module for all robots
         for robot in robots:
             robot.procOutputModule()
-            bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
+            # set the output state of the robot only if output command objects are present in the output modules
+            if (robot.wasOutputRequestMade()):
+                bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
 
     simStepNr += 1
 # end while
