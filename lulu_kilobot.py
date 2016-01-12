@@ -3,7 +3,7 @@ import colorlog # colors log output
 from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
-from copy import deepcopy # for deepcopy (value not reference as = does for objects)
+#from copy import deepcopy # for deepcopy (value not reference as = does for objects)
 import re # for regex matching
 
 # Regex pattern list used to match input / output objects
@@ -435,7 +435,7 @@ else:
             pObj.C.append(config.robotColony[i] + "_" + str(i))
             logging.debug("pObj.C = %s" % pObj.C)
             # create a value copy of the colony and store it under the new name
-            pObj.colonies[pObj.C[-1]] = deepcopy(pObj.colonies[config.robotColony[i]])
+            pObj.colonies[pObj.C[-1]] = pObj.colonies[config.robotColony[i]].getDeepCopyOf()
             # assign the copied Pcolony to the cloned robot
             logging.debug("Robot %i got Pcolony %s" % (i, pObj.C[-1]) )
             robots.append(Kilobot(i, pObj.colonies[pObj.C[-1]]))
