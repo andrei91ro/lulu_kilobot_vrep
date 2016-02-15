@@ -1,0 +1,4 @@
+C = {pi_disperse};
+nrRobots = 10;
+spawnType = circular;
+pi_disperse = 10;

@@ -1,0 +1,5 @@
+C = {pi_minus_straight};
+nrRobots = 3;
+
+pi_minus_straight = 3;
+
