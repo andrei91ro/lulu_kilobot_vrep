@@ -3,7 +3,7 @@ import colorlog # colors log output
 from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
-#from copy import deepcopy # for deepcopy (value not reference as = does for objects)
+from copy import deepcopy # for deepcopy (value not reference as = does for objects)
 import re # for regex matching
 
 # Regex pattern list used to match input / output objects
@@ -230,6 +230,7 @@ class Config():
         self.robotColony = [] # list [robot_nr] = "name_of_colony_that_will_be_used"
         self.robotName = [] # list of robot names (generated from their uid) ex ['robot_0', 'robot_1']
         self.nrAsignedRobotsPerColony = {} # dictionary (colony_name : nr_robots_that_have_been_asigned_this_colony_so_far)
+        self.idOfRobotPerColony = {} # dictionary (colony_name: id_robot_that_has_the_initial_colony_with_this_name); initial means defined in input.lulu
 # end class Config
 
 def process_config_tokens(tokens, parent, index):
@@ -390,6 +391,11 @@ if ('--debug' in sys.argv):
 else:
     colorlog.basicConfig(stream = sys.stdout, level = logging.INFO) # default log level
 
+if ('--defaultOutput' in sys.argv):
+    defaultOutput = True
+else:
+    defaultOutput = False
+
 stream = colorlog.root.handlers[0]
 stream.setFormatter(formatter);
 
@@ -429,6 +435,9 @@ else:
             robots.append(Kilobot(i, pObj.colonies[config.robotColony[i]]))
             # increase the nr of robots configured with this colony
             config.nrConfiguredRobotsWithColony[config.robotColony[i]] += 1
+            # mark this robot_id as the first to use this P colony
+            config.idOfRobotPerColony[config.robotColony[i]] = i;
+            logging.warning("idOfRobotPerColony[%s] = %d", config.robotColony[i], i)
         else:
             logging.debug("Copying Pcolony %s for robot %d" % (config.robotColony[i], i))
             # add a new Pcolony name (with uid appended)
@@ -450,6 +459,59 @@ else:
     for i in range(config.nrRobots):
         print("robot_%d    %s" % (i, config.robotColony[i]))
     print("\n")
+
+    logging.info("Processing wildcards")
+
+    ## expand wildcards (now that we know the total nr of robots of the swarm and their associated Pcolony)
+    #for i in range(config.nrRobots):
+        #robotSuffix = [str(i) for i in range(config.nrRobots)] # ['0', '1', .. 'n']
+        #robotSuffix.pop(i) # remove the current robot
+        ## perform the actual wildcard expansion
+        #robots[i].colony.processWildcards(robotSuffix, str(i))
+
+    # expand wildcards (now that we know the total nr of robots of the swarm and their associated Pcolony)
+    for i in range(config.nrRobots):
+        subcolony_name = config.robotColony[i]
+        for colony_name in config.C:
+            if (colony_name == subcolony_name or subcolony_name.startswith(colony_name)):
+                break
+        logging.info("Expanding colony %s that descends from %s" % (subcolony_name, colony_name))
+
+        robotSuffix = [str(j) for j in range(config.nrRobotsPerColony[colony_name])] # ['0', '1', .. 'n']
+        symbolic_id = i - config.idOfRobotPerColony[colony_name]
+        robotSuffix.pop(symbolic_id)
+        print("symbolic_id = %d robotSuffix = %s" % (symbolic_id, robotSuffix))
+        # perform the actual wildcard expansion
+        robots[i].colony.processWildcards(robotSuffix, str(symbolic_id))
+
+    # EXPAND wildcard objects
+    # Wildcard any objects (*) are expanded in the context of the P colony that they are present
+    #for colony_name in config.C:
+        #logging.info("Expanding colony %s" % colony_name)
+        #robotSuffix = [str(i) for i in range(config.nrRobotsPerColony[colony_name])] # ['0', '1', .. 'n']
+        #logging.debug("robotSuffix = %s" % robotSuffix)
+        ## for all robots that use this P colony
+        #for i in range(config.nrRobotsPerColony[colony_name]):
+            #mySuffix = deepcopy(robotSuffix);
+            #mySuffix.pop(i)
+            #print(mySuffix)
+            ##robots[i].colony.processWildcards(mySuffix, str(i))
+            #pObj.colonies[colony_name].processWildcards(mySuffix, str(i))
+
+    #for subcolony_name in pObj.C:
+        #for colony_name in config.C:
+            #if (colony_name == subcolony_name or subcolony_name.startswith(colony_name)):
+                #break
+        #logging.info("Expanding colony %s that descends from %s" % (subcolony_name, colony_name))
+        #robotSuffix = [str(i) for i in range(config.nrRobotsPerColony[colony_name])] # ['0', '1', .. 'n']
+        #logging.debug("robotSuffix = %s" % robotSuffix)
+        ## for all robots that use this P colony
+        #for i in range(config.nrRobotsPerColony[colony_name]):
+            #mySuffix = deepcopy(robotSuffix);
+            #mySuffix.pop(i)
+            #print(mySuffix)
+            ##robots[i].colony.processWildcards(mySuffix, str(i))
+            #pObj.colonies[subcolony_name].processWildcards(mySuffix, str(i))
 
     # initialize the simResult dictionary
     pObj.simResult = {colonyName: -1 for colonyName in pObj.C}
@@ -476,11 +538,11 @@ while (True):
     # if the simmulation result is other than step finished (i.e. no_more_exec or error)
     if (sim_result != sim.SimStepResult.finished):
         # exit the loop
-        logging.warn("Exiting loop")
+        logging.warn("Exiting")
         break
 
     if (type(pObj) == sim.Pcolony):
-        robot.procOutputModule()
+        robot.procOutputModule(defaultOutput)
         # set the output state of the robot only if output command objects are present in the output modules
         if (robot.wasOutputRequestMade()):
             bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
@@ -497,7 +559,7 @@ while (True):
 
         # process output module for all robots
         for robot in robots:
-            robot.procOutputModule()
+            robot.procOutputModule(defaultOutput)
             # set the output state of the robot only if output command objects are present in the output modules
             if (robot.wasOutputRequestMade()):
                 bridge.setState(robot.uid, robot.output_state["motion"], robot.output_state["led_rgb"])
