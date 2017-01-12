@@ -1,5 +1,4 @@
 import logging
-import colorlog # colors log output
 from vrep_bridge import vrep_bridge # for getState, setState
 from lulu_pcol_sim import sim
 import sys # for argv, stdout
@@ -13,6 +12,7 @@ outputRequest_patterns = outputReqPatterns = [r"m_0", r"m_S", r"m_L", r"m_R", r"
 inputRequest_regex = re.compile('|'.join("(?P<pat_%d>%s)" % (i, pattern) for (i, pattern) in enumerate(inputRequest_patterns)))
 outputRequest_regex = re.compile('|'.join("(?P<pat_%d>%s)" % (i, pattern) for (i, pattern) in enumerate(outputRequest_patterns)))
 
+logLevel = logging.INFO
 class Kilobot():
 
     """Class used to store the state of a Kilobot robot for use in a controller that used Pcolonies."""
@@ -372,32 +372,36 @@ def readConfigFile(filename, printTokens=False):
 
 ##########################################################################
 #   MAIN
-formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(levelname)-8s %(message)s %(reset)s",
-        datefmt=None,
-        reset=True,
-        log_colors={
-                'DEBUG':    'cyan',
-                'INFO':     'green',
-                'WARNING':  'yellow',
-                'ERROR':    'red',
-                'CRITICAL': 'red,bg_white',
-        },
-        secondary_log_colors={},
-        style='%'
-)
-if ('--debug' in sys.argv):
-    colorlog.basicConfig(stream = sys.stdout, level = logging.DEBUG)
-else:
-    colorlog.basicConfig(stream = sys.stdout, level = logging.INFO) # default log level
+if ('--debug' in sys.argv or '-v' in sys.argv):
+    logLevel = logging.DEBUG
+elif ('--error' in sys.argv or '-v0' in sys.argv):
+    logLevel = logging.ERROR
 
-if ('--defaultOutput' in sys.argv):
-    defaultOutput = True
-else:
-    defaultOutput = False
+try:
+    import colorlog # colors log output
 
-stream = colorlog.root.handlers[0]
-stream.setFormatter(formatter);
+    formatter = colorlog.ColoredFormatter(
+            "%(log_color)s%(levelname)-8s %(message)s %(reset)s",
+            datefmt=None,
+            reset=True,
+            log_colors={
+                    'DEBUG':    'cyan',
+                    'INFO':     'green',
+                    'WARNING':  'yellow',
+                    'ERROR':    'red',
+                    'CRITICAL': 'red,bg_white',
+            },
+            secondary_log_colors={},
+            style='%'
+    )
+
+    colorlog.basicConfig(stream = sys.stdout, level = logLevel)
+    stream = colorlog.root.handlers[0]
+    stream.setFormatter(formatter);
+
+# colorlog not available
+except ImportError:
+    logging.basicConfig(format='%(levelname)s:%(message)s', level = logLevel)
 
 if (len(sys.argv) < 2):
     logging.error("Expected input file path as parameter")
